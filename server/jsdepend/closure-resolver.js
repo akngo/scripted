@@ -19,20 +19,25 @@ define(function(require, exports, module) {
 
 ////////////////////////////////////////
 // closure-resolver
-//
-//   Support for resolving commonjs references
 /////////////////////////////////////////
 
 var goog = require('./closure-deps-loader');
 var depsFile;
 
+
+// TODO: Check to see if this is the proper way to retrieve configuration
+// information. It seems very complicated for such a simple task, but I couldn't
+// find anywhere that had a simple way of doing it. Maybe I didn't look hard
+// enough :(.
 var filesystem = require('../utils/filesystem').withBaseDir(null);
 require('./dot-scripted').configure(filesystem).getConfiguration('').then(function(conf) {
 	var deref = require('./utils').deref,
+		pathJoin = require('../jsdepend/utils').pathJoin,
 		file = deref(conf, ['closure', 'deps']);
 
 	if (file) {
-		depsFile = deref(conf, ['fsroot']) + '/' + file;
+		depsFile = pathJoin(deref(conf, ['fsroot']), file);
+		console.log('new path join: ', depsFile);
 		goog.setDepsFile(depsFile);
 	}
 });
