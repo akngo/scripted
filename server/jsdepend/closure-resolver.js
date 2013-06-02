@@ -37,7 +37,6 @@ require('./dot-scripted').configure(filesystem).getConfiguration('').then(functi
 
 	if (file) {
 		depsFile = pathJoin(deref(conf, ['fsroot']), file);
-		console.log('new path join: ', depsFile);
 		goog.setDepsFile(depsFile);
 	}
 });

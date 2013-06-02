@@ -34,7 +34,6 @@ var finders = {
 	'AMD': require('./amd-reference-finder').findReferences,
 	'commonjs': require('./commonjs-reference-finder').configure('commonjs'),
 	'commonjs,AMD': require('./commonjs-reference-finder').configure('commonjs,AMD'),
-	//'closure': require('./commonjs-reference-finder').configure('commonjs')
 	'closure': require('./closure-reference-finder').configure('closure')
 };
 
