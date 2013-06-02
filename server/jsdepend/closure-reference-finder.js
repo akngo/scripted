@@ -8,7 +8,7 @@
  * http://www.opensource.org/licenses/eclipse-1.0.php
  *
  * Contributors:
- *     Kris De Volder - initial API and implementation
+ *     Anh-Kiet Ngo
  ******************************************************************************/
 
 /*global require define console module*/
@@ -24,16 +24,8 @@ define(function(require, exports, module) {
 var tm = require("./tree-matcher");
 var walk = require("./tree-walker").walk;
 var objectPat = tm.objectPat;
-var containsPat = tm.containsPat;
-var getFieldPat = tm.getFieldPat;
-var arrayElementPat = tm.arrayElementPat;
 var matches = tm.matches;
 var variablePat = tm.variablePat;
-var andPat = tm.andPat;
-
-function dumpTree(parseTree) {
-	console.log(JSON.stringify(parseTree, null, "  "));
-}
 
 var requireParam = variablePat('string');
 var requirePat = objectPat({
@@ -81,7 +73,6 @@ function configure(moduleType) {
 		// reduce the dependency on the the deps file, maybe in the future we
 		// will support the entire pipeline without the need for DepsWriter
 		walk(tree, function (node) {
-			//dumpTree(node);
 			if (matches(requirePat, node)) {
 				var name = requireParam.value;
 				addFound(name);
