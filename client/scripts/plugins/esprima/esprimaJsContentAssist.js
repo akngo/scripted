@@ -1057,16 +1057,6 @@ define(["plugins/esprima/esprimaVisitor", "plugins/esprima/types", "plugins/espr
 				fnTypeObj = mTypes.extractReturnType(fnTypeObj);
 			}
 
-			if (node.callee.object && node.callee.object.name === "goog" &&
-					node.callee.property && node.callee.property.name === "require") {
-
-				//node.extras.inferredTypeObj = env.addOrSetGlobalVariable(node.arguments[0].value, null, node.range).typeObj;
-				//env.addOrSetGlobalVariable('freya.Mozmod', null).typeObj = fnTypeObj;
-				//env.addOrSetGlobalVariable('freya.Mozmod', fnTypeObj, node.range).typeObj;
-				//node.extras.inferredTypeObj = env.addOrSetGlobalVariable('freya.Mozmod', null).typeObj;
-			} else {
-				node.extras.inferredTypeObj = fnTypeObj;
-			}
 			node.extras.inferredTypeObj = fnTypeObj;
 			break;
 		case "NewExpression":
