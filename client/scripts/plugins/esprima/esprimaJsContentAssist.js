@@ -493,8 +493,12 @@ define(["plugins/esprima/esprimaVisitor", "plugins/esprima/types", "plugins/espr
 		if (!env.indexer) {
 			return;
 		}
-		if (call.type === "CallExpression" && call.callee.type === "Identifier" &&
-			call.callee.name === "require" && call["arguments"].length === 1) {
+		if (call.type === "CallExpression" && call["arguments"].length === 1 &&
+				((call.callee.type === "Identifier" &&
+				  call.callee.name === "require") ||
+				 (call.callee.type === "MemberExpression" &&
+				  call.callee.object.name === "goog" &&
+				  call.callee.property.name === "require"))) {
 
 			var arg = call["arguments"][0];
 			if (arg.type === "Literal" && typeof arg.value === "string") {
@@ -1051,6 +1055,17 @@ define(["plugins/esprima/esprimaVisitor", "plugins/esprima/types", "plugins/espr
 			if (!fnTypeObj) {
 				fnTypeObj = node.callee.extras.inferredTypeObj;
 				fnTypeObj = mTypes.extractReturnType(fnTypeObj);
+			}
+
+			if (node.callee.object && node.callee.object.name === "goog" &&
+					node.callee.property && node.callee.property.name === "require") {
+
+				//node.extras.inferredTypeObj = env.addOrSetGlobalVariable(node.arguments[0].value, null, node.range).typeObj;
+				//env.addOrSetGlobalVariable('freya.Mozmod', null).typeObj = fnTypeObj;
+				//env.addOrSetGlobalVariable('freya.Mozmod', fnTypeObj, node.range).typeObj;
+				//node.extras.inferredTypeObj = env.addOrSetGlobalVariable('freya.Mozmod', null).typeObj;
+			} else {
+				node.extras.inferredTypeObj = fnTypeObj;
 			}
 			node.extras.inferredTypeObj = fnTypeObj;
 			break;
