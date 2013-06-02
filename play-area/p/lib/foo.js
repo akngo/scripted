@@ -1,4 +1,8 @@
 /*jslint node:true */
-function foo() {}
+function foo() {
+	return {
+		bar: 7,
+		baz: 'hello world'
+	};
+}
 exports = foo;
- 
