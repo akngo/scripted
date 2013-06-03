@@ -323,7 +323,7 @@ define(["plugins/esprima/esprimaJsContentAssist", "orion/assert"], function(mEsp
 			"goog.provide('Bar');\n" +
 			"Bar = function() {};", "a");
 	};
-	tests.testClosure2 = function() {
+	tests.testClosure3 = function() {
 		assertCreateSummary('{"provided":{"goog":"gen~97~0","foo":"gen~97~2","foo.Bar":"function(new:foo.Bar):foo.Bar","[object Object]":"function(new:foo.Bar):foo.Bar"},"types":{"gen~97~0":{"$$proto":"Object","provide":"Object"},"gen~97~2":{"$$proto":"Object","Bar":"function(new:foo.Bar):foo.Bar"},"foo.Bar":{"$$proto":"foo.Bar~proto"},"foo.Bar~proto":{"$$proto":"Object"}},"kind":"closure"}',
 			"goog.provide('foo.Bar');\n" +
 			"foo.Bar = function() {};", "a");
