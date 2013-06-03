@@ -427,6 +427,29 @@ define(["plugins/esprima/esprimaVisitor", "plugins/esprima/types", "plugins/espr
 			return newFunctionTypeObj;
 		}
 	}
+	
+	/**
+	 * checks to see if this file looks like a Closure module
+	 * Assumes the first call is to goog.provide
+	 * @return true iff there is a top-level call to 'goog.provide'
+	 */
+	function checkForClosure(node) {
+		var body = node.body;
+		if (body && body.length >= 1) {
+			if (body[0].type === "ExpressionStatement" &&
+				body[0].expression &&
+				body[0].expression.type === "CallExpression" &&
+				body[0].expression.callee.object &&
+				body[0].expression.callee.object.name === "goog" &&
+				body[0].expression.callee.property &&
+				body[0].expression.callee.property.name === "provide") {
+
+				// found it.
+				return body[0].expression;
+			}
+		}
+	}
+	
 	/**
 	 * checks to see if this file looks like an AMD module
 	 * Assumes that there are one or more calls to define at the top level
@@ -650,10 +673,19 @@ define(["plugins/esprima/esprimaVisitor", "plugins/esprima/types", "plugins/espr
 		switch(type) {
 		case "Program":
 			// check for module kind
-			env.commonjsModule = checkForCommonjs(node);
-			if (!env.commonjsModule) {
-				// can't be both amd and commonjs
-				env.amdModule = checkForAMD(node);
+			var moduleMapping = {
+					"commonjsModule": checkForCommonjs,
+					"amdModule": checkForAMD,
+					"closureModule": checkForClosure
+				},
+				result;
+
+			for (name in moduleMapping) {
+				result = moduleMapping[name](node);
+				if (result) {
+					env[name] = result;
+					break;
+				}
 			}
 			break;
 		case "BlockStatement":
@@ -1622,6 +1654,8 @@ define(["plugins/esprima/esprimaVisitor", "plugins/esprima/types", "plugins/espr
 			amdModule : null,
 			/** if this is a wrapped commonjs module, then the value of this property is the 'define' call expression */
 			commonjsModule : null,
+			/** if this is a closure module call, the the value is the goog.provide call expression */
+			closureModule : null,
 			/** the indexer for thie content assist invocation.  Used to track down dependencies */
 			indexer: indexer,
 			/** the offset of content assist invocation */
@@ -2677,7 +2711,9 @@ define(["plugins/esprima/esprimaVisitor", "plugins/esprima/types", "plugins/espr
 				var exportsParam = environment.commonjsModule["arguments"][0].params[1];
 				modTypeObj = exportsParam.extras.inferredTypeObj;
 				providedType = environment.findType(modTypeObj);
-
+			} else if (environment.closureModule) {
+				modTypeObj = environment.globalScope()['this'].typeObj;
+				kind = "closure";
 			} else {
 				// assume a non-module
 				providedType = environment.globalScope();
