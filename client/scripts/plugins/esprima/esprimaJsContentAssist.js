@@ -13,9 +13,8 @@
  ******************************************************************************/
 
 /*global define esprima doctrine */
-define(["plugins/esprima/esprimaVisitor", "plugins/esprima/types", "plugins/esprima/proposalUtils", "scriptedLogger", "esprima/esprima"],
+define(["plugins/esprima/esprimaVisitor", "plugins/esprima/types", "plugins/esprima/proposalUtils", "scriptedLogger", "lib/esprima/esprima"],
 		function(mVisitor, mTypes, proposalUtils, scriptedLogger) {
-
 	/**
 	 * TODO move this to a central location
 	 * @type {function(obj):Boolean} a safe way of checking for arrays
