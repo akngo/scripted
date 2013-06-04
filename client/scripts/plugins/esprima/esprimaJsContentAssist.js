@@ -899,8 +899,9 @@ define(["plugins/esprima/esprimaVisitor", "plugins/esprima/types", "plugins/espr
 				if (node.init && !node.init.extras) {
 					node.init.extras = {};
 				}
-				if (node.init && node.init.type === "FunctionExpression") {
-					// RHS is a function, remember the name in case it is a constructor
+
+				if (node.init && (node.init.type === "FunctionExpression")) {
+					// RHS is a function or could return a function, remember the name in case it is a constructor
 					node.init.extras.fname = node.id.name;
 					node.init.extras.cname = env.getQualifiedName() + node.id.name;
 					node.init.extras.fnameRange = node.id.range;
@@ -926,20 +927,25 @@ define(["plugins/esprima/esprimaVisitor", "plugins/esprima/types", "plugins/espr
 				if (!rightMost.extras) {
 					rightMost.extras = {};
 				}
-				if (node.right.type === "FunctionExpression") {
+
+				var right = node.right,
+						isExtend = right.callee && right.callee.property && right.callee.property.name === "extend";
+
+				if (right.type === "FunctionExpression") {
 					// RHS is a function, remember the name in case it is a constructor
-					if (!node.right.extras) {
-						node.right.extras = {};
+					if (!right.extras) {
+						right.extras = {};
 					}
-					node.right.extras.appliesTo = rightMost;
-					node.right.extras.fname = rightMost.name;
-					node.right.extras.cname = qualName;
-					node.right.extras.fnameRange = rightMost.range;
+					right.extras.appliesTo = rightMost;
+					right.extras.fname = rightMost.name;
+					right.extras.cname = qualName;
+					right.extras.fnameRange = rightMost.range;
 
 					if (!node.left.extras) {
 						node.left.extras = {};
 					}
 				}
+
 				docComment = findAssociatedCommentBlock(node, env.comments);
 				jsdocResult = mTypes.parseJSDocComment(docComment);
 				jsdocType = jsdocResult.type && mTypes.convertJsDocType(jsdocResult.type, env);
@@ -994,6 +1000,22 @@ define(["plugins/esprima/esprimaVisitor", "plugins/esprima/types", "plugins/espr
 					}
 					args[args.length-1].extras.amdDefn = node;
 				}
+			} else if (node.callee && node.callee.property && node.callee.property.name === "extend") {
+					newTypeObj = env.newObject(undefined, node.range);
+					var functionTypeObj = mTypes.createFunctionType([], newTypeObj, true);
+
+					node.extras = node.extras || {};
+					node.extras.isConstructor = true;
+					node.extras.inferredTypeObj = functionTypeObj;
+					/*
+					docComment = node.extras.associatedComment || findAssociatedCommentBlock(node, env.comments);
+					jsdocResult = mTypes.parseJSDocComment(docComment);
+					env.addOrSetGlobalVariable(rightMost.name, functionTypeObj, rightMost.range, docComment.range);
+					*/
+
+					if (node.arguments && node.arguments[0]) {
+						node.arguments[0].extras = {target: node};
+					}
 			} else {
 				// the type of the function call may help infer the types of the parameters
 				// keep track of that here
@@ -1081,16 +1103,27 @@ define(["plugins/esprima/esprimaVisitor", "plugins/esprima/types", "plugins/espr
 			}
 			break;
 		case "CallExpression":
-			// first check to see if this is a require call
-			var fnTypeObj = extractRequireModule(node, env);
+			// We skip this since node.extras.inferredTypeObj is already the correct one
+			if (!node.extras.isConstructor) {
+				// first check to see if this is a require call
+				var fnTypeObj = extractRequireModule(node, env);
 
-			// otherwise, apply the function
-			if (!fnTypeObj) {
-				fnTypeObj = node.callee.extras.inferredTypeObj;
-				fnTypeObj = mTypes.extractReturnType(fnTypeObj);
-			}
+				// otherwise, apply the function
+				if (!fnTypeObj) {
+					fnTypeObj = node.callee.extras.inferredTypeObj;
+					fnTypeObj = mTypes.extractReturnType(fnTypeObj);
+				}
 
-			node.extras.inferredTypeObj = fnTypeObj;
+				node.extras.inferredTypeObj = fnTypeObj;
+			} else {
+				docComment = findAssociatedCommentBlock(node.callee, env.comments);
+				if (node.callee.object && node.callee.object.extras &&
+						node.callee.object.extras.inferredTypeObj &&
+						node.callee.object.extras.inferredTypeObj.result) {
+					env.addVariable('prototype', node, node.callee.object.extras.inferredTypeObj.result,
+						node.callee.object.range, docComment.range); // Are these uses correct?
+				}
+      }
 			break;
 		case "NewExpression":
 			// FIXADE we have a problem here.
@@ -1126,10 +1159,12 @@ define(["plugins/esprima/esprimaVisitor", "plugins/esprima/types", "plugins/espr
 
 						inferredTypeObj =  kvps[i].key.extras.jsdocType || kvps[i].value.extras.inferredTypeObj;
 						var docComment = kvps[i].key.extras.associatedComment;
-						env.addVariable(name, node, inferredTypeObj, range, docComment.range);
+						//env.addVariable(name, node, inferredTypeObj, range, docComment.range);
+						env.addVariable(name, node.extras.target || node, inferredTypeObj, range, docComment.range);
+
 						if (inRange(env.offset-1, kvps[i].key.range)) {
 							// We found it! rmember for later, but continue to the end of file anyway
-							env.storeTarget(env.scope(node));
+							env.storeTarget(env.scope(node.extras.target || node));
 						}
 					}
 				}
@@ -1247,19 +1282,21 @@ define(["plugins/esprima/esprimaVisitor", "plugins/esprima/types", "plugins/espr
 			}
 			break;
 		case "VariableDeclarator":
-			if (node.init) {
-				inferredTypeObj = node.init.extras.inferredTypeObj;
-			} else {
-				inferredTypeObj = env.newFleetingObject();
-			}
-			node.id.extras.inferredTypeObj = inferredTypeObj;
-			if (!node.extras.jsdocType) {
-				node.extras.inferredTypeObj = inferredTypeObj;
-				env.addVariable(node.id.name, node.extras.target, inferredTypeObj, node.id.range, node.extras.docRange);
-			}
-			if (inRange(env.offset-1, node.id.range)) {
-				// We found it! rmember for later, but continue to the end of file anyway
-				env.storeTarget(env.scope(node.id.extras.target));
+			if (!node.extras.inferredTypeObj) {
+				if (node.init) {
+					inferredTypeObj = node.init.extras.inferredTypeObj;
+				} else {
+					inferredTypeObj = env.newFleetingObject();
+				}
+				node.id.extras.inferredTypeObj = inferredTypeObj;
+				if (!node.extras.jsdocType) {
+					node.extras.inferredTypeObj = inferredTypeObj;
+					env.addVariable(node.id.name, node.extras.target, inferredTypeObj, node.id.range, node.extras.docRange);
+				}
+				if (inRange(env.offset-1, node.id.range)) {
+					// We found it! rmember for later, but continue to the end of file anyway
+					env.storeTarget(env.scope(node.id.extras.target));
+				}
 			}
 			env.popName();
 			break;
